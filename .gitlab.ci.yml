@@ -1,0 +1,42 @@
+image: maven:latest
+
+services:
+  - docker:dind
+
+stages:
+  - validate
+  - build
+  - test
+  - deploy
+
+validate:
+  stage: validate
+  script:
+    - docker-compose config --quiet
+  only:
+    - branches
+
+build:
+  stage: build
+  script:
+    - mvn clean install
+  only:
+    - branches
+
+test:
+  stage: test
+  script:
+    - docker-compose up -d
+    - docker-compose exec backend sh -c "mvn test"
+  except:
+    - master
+
+deploy:
+  stage: deploy
+  script:
+    - apk add --update openssh
+    - apk add --update --no-cache openssh sshpass
+    - export SSHPASS=$SSH_PASS
+    - sshpass -e ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no $SSH_HOST -q $DEPLOY_CMD
+  only:
+    - master
